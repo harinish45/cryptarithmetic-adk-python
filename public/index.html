@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cryptarithmetic Solver — Powered by Google ADK</title>
+    <meta name="description"
+        content="Solve cryptarithmetic puzzles like SEND + MORE = MONEY using AI-powered backtracking with MRV and LCV heuristics." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --surface2: #1a2235;
+            --border: #1e2d45;
+            --accent: #6366f1;
+            --accent2: #8b5cf6;
+            --accent3: #06b6d4;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --glow: 0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.03) 0%, transparent 60%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        main {
+            position: relative;
+            z-index: 1;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 3rem 1rem 2.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.3rem 0.8rem;
+            border-radius: 100px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .badge::before {
+            content: '⚡';
+        }
+
+        h1 {
+            font-size: clamp(2rem, 5vw, 3.4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #e2e8f0 20%, #a5b4fc 60%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.15;
+            margin-bottom: 0.75rem;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 1.05rem;
+            font-weight: 400;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.25rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: var(--glow);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Input row */
+        .input-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 0;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            padding: 0.85rem 1.1rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        input::placeholder {
+            color: var(--muted);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.85rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 28px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Quick examples */
+        .examples {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.85rem;
+        }
+
+        .example-chip {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.35rem 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-chip:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        /* Difficulty pills */
+        .diff-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .diff-pill {
+            padding: 0.4rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .diff-pill.active,
+        .diff-pill:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* Hint levels */
+        .hint-levels {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .level-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .level-btn.active {
+            border-color: var(--accent3);
+            color: var(--accent3);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        /* Results */
+        .result-box {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+            min-height: 60px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .result-box.success {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .result-box.error {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .solution-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .solution-num {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.8rem;
+            min-width: 24px;
+        }
+
+        .solution-str {
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        .mapping {
+            color: var(--muted);
+            font-size: 0.78rem;
+            flex: 1;
+        }
+
+        .stat-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .stat span {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Hint list */
+        .hint-item {
+            padding: 0.4rem 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .hint-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Algo info */
+        .algo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .algo-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .algo-card .algo-icon {
+            font-size: 1.4rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .algo-card .algo-name {
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .algo-card .algo-desc {
+            font-size: 0.78rem;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            padding: 1rem 0;
+            font-size: 0.88rem;
+        }
+
+        @media (max-width: 600px) {
+            .input-row {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="badge">Google ADK · Gemini 2.5 Flash · Python</div>
+        <h1>Cryptarithmetic Solver</h1>
+        <p class="subtitle">Where each letter hides a unique digit. Powered by Backtracking + MRV + LCV.</p>
+    </header>
+
+    <main>
+
+        <!-- SOLVE -->
+        <div class="card">
+            <div class="card-title">🔢 Solve a Puzzle</div>
+            <div class="input-row">
+                <input type="text" id="solveInput" placeholder="SEND + MORE = MONEY" value="SEND + MORE = MONEY" />
+                <button class="btn btn-primary" id="solveBtn" onclick="runSolve()">
+                    <span id="solveBtnText">Solve →</span>
+                </button>
+            </div>
+            <div class="examples">
+                <span style="font-size:0.75rem;color:var(--muted);align-self:center;">Try:</span>
+                <div class="example-chip" onclick="setExample('SEND + MORE = MONEY')">SEND + MORE = MONEY</div>
+                <div class="example-chip" onclick="setExample('CROSS + ROADS = DANGER')">CROSS + ROADS = DANGER</div>
+                <div class="example-chip" onclick="setExample('FORTY + TEN = SIXTY')">FORTY + TEN = SIXTY</div>
+                <div class="example-chip" onclick="setExample('CAT + DOG = BEAST')">CAT + DOG = BEAST</div>
+            </div>
+            <div class="result-box" id="solveResult">
+                <div class="empty-state">Enter a puzzle above and hit Solve →</div>
+            </div>
+        </div>
+
+        <!-- VALIDATE -->
+        <div class="card">
+            <div class="card-title">✅ Validate a Puzzle</div>
+            <div class="input-row">
+                <input type="text" id="validateInput" placeholder="BASE + BALL = GAMES" />
+                <button class="btn btn-secondary" onclick="runValidate()">Validate</button>
+            </div>
+            <div class="result-box" id="validateResult">
+                <div class="empty-state">Enter a puzzle to check if it's valid and solvable.</div>
+            </div>
+        </div>
+
+        <!-- HINT -->
+        <div class="card">
+            <div class="card-title">💡 Get Hints</div>
+            <div class="hint-levels">
+                <div class="level-btn active" id="lvl1" onclick="setLevel(1)">Level 1 · Basic</div>
+                <div class="level-btn" id="lvl2" onclick="setLevel(2)">Level 2 · Columns</div>
+                <div class="level-btn" id="lvl3" onclick="setLevel(3)">Level 3 · Strategy</div>
+            </div>
+            <div class="input-row">
+                <input type="text" id="hintInput" placeholder="SEND + MORE = MONEY" />
+                <button class="btn btn-secondary" onclick="runHint()">Get Hints</button>
+            </div>
+            <div class="result-box" id="hintResult">
+                <div class="empty-state">Enter a puzzle to get progressive hints without spoiling the answer.</div>
+            </div>
+        </div>
+
+        <!-- GENERATE -->
+        <div class="card">
+            <div class="card-title">✨ Generate a Puzzle</div>
+            <div class="diff-row">
+                <div class="diff-pill active" id="easy" onclick="setDiff('easy')">Easy</div>
+                <div class="diff-pill" id="medium" onclick="setDiff('medium')">Medium</div>
+                <div class="diff-pill" id="hard" onclick="setDiff('hard')">Hard</div>
+            </div>
+            <button class="btn btn-primary" onclick="runGenerate()" style="width:100%;justify-content:center">
+                ✨ Generate Puzzle
+            </button>
+            <div class="result-box" id="generateResult">
+                <div class="empty-state">Generate a fresh cryptarithmetic puzzle to try!</div>
+            </div>
+        </div>
+
+        <!-- ALGORITHM INFO -->
+        <div class="card">
+            <div class="card-title">⚙️ Algorithm Under the Hood</div>
+            <div class="algo-grid">
+                <div class="algo-card">
+                    <div class="algo-icon">🔙</div>
+                    <div class="algo-name">Backtracking</div>
+                    <div class="algo-desc">Core search: assigns digits recursively and undoes bad choices.</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">📡</div>
+                    <div class="algo-name">Forward Checking</div>
+                    <div class="algo-desc">Prunes domains after each assignment to avoid exploring dead ends.</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">📉</div>
+                    <div class="algo-name">MRV Heuristic</div>
+                    <div class="algo-desc">Always picks the letter with fewest remaining options — fail fast.</div>
+                </div>
+                <div class="algo-card">
+                    <div class="algo-icon">⚖️</div>
+                    <div class="algo-name">LCV Heuristic</div>
+                    <div class="algo-desc">Tries the digit that eliminates the fewest options for others.</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="toast"></div>
+
+    <script>
+        const BASE = ''; // same origin — Vercel serves API + frontend together
+        let selectedLevel = 1;
+        let selectedDiff = 'easy';
+
+        function setExample(expr) {
+            document.getElementById('solveInput').value = expr;
+        }
+
+        function setLevel(n) {
+            selectedLevel = n;
+            [1, 2, 3].forEach(i => document.getElementById(`lvl${i}`).classList.toggle('active', i === n));
+        }
+
+        function setDiff(d) {
+            selectedDiff = d;
+            ['easy', 'medium', 'hard'].forEach(x => document.getElementById(x).classList.toggle('active', x === d));
+        }
+
+        function setLoading(btnId, textId, loading) {
+            const btn = document.getElementById(btnId);
+            const txt = document.getElementById(textId);
+            if (btn) btn.disabled = loading;
+            if (txt) txt.innerHTML = loading ? '<span class="spinner"></span>' : (btnId === 'solveBtn' ? 'Solve →' : '');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        async function post(endpoint, body) {
+            const res = await fetch(`${BASE}/api/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        }
+
+        async function runSolve() {
+            const expr = document.getElementById('solveInput').value.trim();
+            if (!expr) return;
+            const box = document.getElementById('solveResult');
+            setLoading('solveBtn', 'solveBtnText', true);
+            box.className = 'result-box';
+            box.innerHTML = '<div class="empty-state"><span class="spinner"></span> Solving…</div>';
+            try {
+                const data = await post('solve', { expression: expr });
+                if (!data.success) {
+                    box.className = 'result-box error';
+                    box.innerHTML = `<div style="color:var(--red)">❌ ${data.error || 'No solution found.'}</div>`;
+                } else {
+                    box.className = 'result-box success';
+                    let html = '';
+                    data.solutions.forEach((s, i) => {
+                        const mapping = Object.entries(s.mapping).map(([k, v]) => `${k}=${v}`).join(' ');
+                        html += `<div class="solution-item">
+            <span class="solution-num">#${i + 1}</span>
+            <span class="solution-str">${s.substituted}</span>
+            <span class="mapping">[${mapping}]</span>
+          </div>`;
+                    });
+                    html += `<div class="stat-row">
+          <div class="stat">Nodes: <span>${data.stats.nodes_explored.toLocaleString()}</span></div>
+          <div class="stat">Backtracks: <span>${data.stats.backtracks.toLocaleString()}</span></div>
+          <div class="stat">Solutions: <span>${data.solutions.length}</span></div>
+        </div>`;
+                    box.innerHTML = html;
+                    showToast(`✅ Found ${data.solutions.length} solution(s)!`);
+                }
+            } catch (e) {
+                box.className = 'result-box error';
+                box.innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+            } finally {
+                setLoading('solveBtn', 'solveBtnText', false);
+                document.getElementById('solveBtnText').textContent = 'Solve →';
+            }
+        }
+
+        async function runValidate() {
+            const expr = document.getElementById('validateInput').value.trim();
+            if (!expr) return;
+            const box = document.getElementById('validateResult');
+            box.innerHTML = '<div class="empty-state"><span class="spinner"></span> Validating…</div>';
+            try {
+                const data = await post('validate', { expression: expr });
+                if (!data.valid) {
+                    box.className = 'result-box error';
+                    box.innerHTML = `<div style="color:var(--red)">❌ Invalid: ${data.error}</div>`;
+                } else {
+                    box.className = data.solvable ? 'result-box success' : 'result-box';
+                    box.innerHTML = `
+          <div><span style="color:${data.solvable ? 'var(--green)' : 'var(--yellow)'}">
+            ${data.solvable ? '✅ Valid & Solvable' : '⚠️ Valid but No Solution'}
+          </span></div>
+          <div class="stat-row" style="margin-top:0.5rem">
+            <div class="stat">Letters: <span>${data.unique_letters.join(', ')}</span></div>
+            <div class="stat">Leading: <span>${data.leading_letters.join(', ')}</span></div>
+            <div class="stat">Solutions: <span>${data.solutions_count}</span></div>
+          </div>`;
+                }
+            } catch (e) {
+                box.className = 'result-box error';
+                box.innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+            }
+        }
+
+        async function runHint() {
+            const expr = document.getElementById('hintInput').value.trim();
+            if (!expr) return;
+            const box = document.getElementById('hintResult');
+            box.innerHTML = '<div class="empty-state"><span class="spinner"></span> Generating hints…</div>';
+            try {
+                const data = await post('hint', { expression: expr, hint_level: selectedLevel });
+                box.className = 'result-box';
+                box.innerHTML = data.hints.map(h => `<div class="hint-item">${h}</div>`).join('');
+            } catch (e) {
+                box.className = 'result-box error';
+                box.innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+            }
+        }
+
+        async function runGenerate() {
+            const box = document.getElementById('generateResult');
+            box.innerHTML = '<div class="empty-state"><span class="spinner"></span> Generating puzzle…</div>';
+            try {
+                const data = await post('generate', { difficulty: selectedDiff });
+                box.className = 'result-box';
+                box.innerHTML = `
+        <div style="font-size:1.2rem;font-weight:700;color:var(--accent);margin-bottom:0.5rem">
+          ${data.expression}
+        </div>
+        <div class="stat-row">
+          <div class="stat">Difficulty: <span>${data.difficulty}</span></div>
+          <div class="stat">Solvable: <span style="color:${data.solvable ? 'var(--green)' : 'var(--red)'}">${data.solvable ? 'Yes' : 'No'}</span></div>
+        </div>
+        <div style="margin-top:0.75rem">
+          <button class="btn btn-primary" onclick="document.getElementById('solveInput').value='${data.expression}';runSolve()">
+            🔢 Solve this puzzle
+          </button>
+        </div>`;
+                showToast('✨ New puzzle generated!');
+            } catch (e) {
+                box.className = 'result-box error';
+                box.innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+            }
+        }
+
+        // Auto-solve the default example on load
+        window.addEventListener('load', () => setTimeout(runSolve, 500));
+    </script>
+</body>
+
+</html>
