@@ -1,76 +1,117 @@
-# Cryptarithmetic Solver — Powered by Google ADK
+<div align="center">
 
-A full-stack cryptarithmetic puzzle solver using **Google Agent Development Kit (ADK)** + **Gemini 2.5 Flash**, with a pure-Python **Backtracking + MRV + LCV** algorithm engine.
+# 🔢 Cryptarithmetic × Google ADK
 
-🔗 **Live Demo**: [View on Vercel](#)
+**AI-Powered Puzzle Solver with Gemini Intelligence**
+
+[![CI](https://github.com/harinish45/cryptarithmetic-adk-python/actions/workflows/ci.yml/badge.svg)](https://github.com/harinish45/cryptarithmetic-adk-python/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Gemini](https://img.shields.io/badge/Gemini-2.5%20Flash-4285F4?logo=google&logoColor=white)](https://ai.google.dev)
+[![ADK](https://img.shields.io/badge/Google%20ADK-Agent-orange)](https://google.github.io/adk-docs)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-000000?logo=vercel)](vercel.json)
+
+> *Solves cryptarithmetic puzzles using Google ADK + Gemini 2.5 Flash with step-by-step reasoning and conversational explanations*
+
+[📋 TODO](TODO.md) · [🧪 Test Chat](test_chat.py) · [🚀 Live Demo](#)
+
+</div>
 
 ---
 
-## Features
+## 🏗️ Architecture
 
-- 🔢 **Solve** any cryptarithmetic puzzle (e.g. `SEND + MORE = MONEY`)
-- ✅ **Validate** — check if a puzzle is well-formed and solvable
-- 💡 **Hints** — 3 progressive hint levels without spoiling the answer
-- ✨ **Generate** — create new puzzles at easy / medium / hard difficulty
-- 🤖 **ADK Agent** — run the full AI assistant with `adk web`
+```mermaid
+graph TB
+    subgraph User["👤 User"]
+        Chat["💬 Chat Interface\n(Web / CLI)"]
+    end
 
-## Algorithm
+    subgraph ADK["🤖 Google ADK Agent"]
+        Orchestrator["🧠 Gemini 2.5 Flash\nOrchestrator"]
+        SolverTool["🔧 solver_tool\n(ADK Tool)"]
+        ExplainerTool["📋 explain_tool\n(ADK Tool)"]
+        ValidatorTool["✅ validate_tool\n(ADK Tool)"]
+    end
 
-| Component | Description |
-|---|---|
-| Backtracking | Core recursive search with undo on failure |
-| Forward Checking | Prunes domains after each assignment |
-| MRV Heuristic | Picks the letter with fewest options — fail fast |
-| LCV Heuristic | Tries digits that eliminate the least for others |
+    subgraph Core["⚙️ Python CSP Engine"]
+        Parser["🔤 Puzzle Parser"]
+        Backtrack["🔙 Backtracking\n+ MRV + LCV"]
+        Tracer["📍 Step Tracer"]
+    end
 
-## Local Development
+    subgraph API["🌐 FastAPI"]
+        SolveEP["POST /solve"]
+        ChatEP["POST /chat"]
+        HistoryEP["GET /history"]
+    end
+
+    Chat --> API
+    API --> Orchestrator
+    Orchestrator --> SolverTool
+    Orchestrator --> ExplainerTool
+    Orchestrator --> ValidatorTool
+    SolverTool --> Core
+    Core --> Parser
+    Parser --> Backtrack
+    Backtrack --> Tracer
+```
+
+---
+
+## 💬 Example Conversation
+
+```
+You: Solve SEND + MORE = MONEY
+
+Gemini: Let me work through this step by step...
+        Setting up constraints: S≠0, M≠0, all digits unique
+        Running MRV heuristic — assigning M=1 first (most constrained)
+        ...
+        ✅ Solution found!
+        S=9, E=5, N=6, D=7, M=1, O=0, R=8, Y=2
+        9567 + 1085 = 10652 ✓
+
+You: Why did you assign M=1 first?
+
+Gemini: M appears in the result's leftmost position...
+```
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-# 1. Install dependencies
+git clone https://github.com/harinish45/cryptarithmetic-adk-python.git
+cd cryptarithmetic-adk-python
+
 pip install -r requirements.txt
 
-# 2. Set your Gemini API key
-echo "GOOGLE_API_KEY=your_key" > .env
+# Set your Gemini API key
+export GEMINI_API_KEY="your-key-here"
 
-# 3. Run the ADK web UI (agent chat + trace inspector)
-adk web
+# Test the agent
+python test_chat.py
 
-# 4. Or run the FastAPI backend
-uvicorn api.index:app --reload --port 8000
+# Start web server
+uvicorn api.main:app --reload
 ```
 
-Then open `http://localhost:8000` in your browser.
+---
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/solve` | Solve a puzzle |
-| POST | `/api/validate` | Validate a puzzle |
-| POST | `/api/hint` | Get progressive hints |
-| POST | `/api/generate` | Generate a new puzzle |
-
-## Deploy to Vercel
-
-```bash
-npm i -g vercel
-vercel --prod
-```
-
-Add `GOOGLE_API_KEY` in your Vercel dashboard environment variables.
-
-## Project Structure
+## 📁 Structure
 
 ```
-cryptarithmetic-adk-py/
-├── api/
-│   └── index.py              # FastAPI backend (Vercel entry point)
-├── cryptarithmetic_agent/
-│   ├── solver.py             # Pure Python solver engine
-│   └── agent.py              # Google ADK LlmAgent definition
-├── public/
-│   └── index.html            # Frontend UI
-├── vercel.json               # Vercel routing config
-├── requirements.txt
-└── .env                      # GOOGLE_API_KEY (not committed)
+cryptarithmetic-adk-python/
+├── 🤖  cryptarithmetic_agent/  # Google ADK agent + tools
+├── 🌐  api/                   # FastAPI backend
+├── 🖥️  public/                # Frontend assets
+├── 🧪  test_chat.py           # Chat test harness
+└── ⚙️  vercel.json            # Deployment config
 ```
+
+---
+
+<div align="center">
+<a href="https://google.github.io/adk-docs">Google ADK Docs</a> · <a href="LICENSE">MIT License</a> · Built by harinish45
+</div>
